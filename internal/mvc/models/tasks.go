@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -33,29 +34,39 @@ type Task struct {
 }
 
 func AddTask(t Task) (int64, error) {
+	tx, err := DB.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	query := `INSERT INTO tasks (
 		title, description, goal_id, status, priority, cost, risk, expected_outcome, category, is_submodule_task, needs_clarification, missing_info_details
 	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	
-	res, err := DB.Exec(query, 
-		t.Title, t.Description, t.GoalID, "pending", t.Priority, 
+
+	res, err := tx.Exec(query,
+		t.Title, t.Description, t.GoalID, "pending", t.Priority,
 		t.Cost, t.Risk, t.ExpectedOutcome, t.Category, t.IsSubmodule, t.NeedsClarify, t.MissingInfo,
 	)
 	if err != nil {
 		log.Printf("Error adding smart task: %v", err)
 		return 0, err
 	}
-	
+
 	taskID, _ := res.LastInsertId()
-	
+
 	for _, st := range t.Subtasks {
-		_, err := DB.Exec(`INSERT INTO subtasks (task_id, title, details, tools, needs_resolution) VALUES (?, ?, ?, ?, ?)`,
+		_, err := tx.Exec(`INSERT INTO subtasks (task_id, title, details, tools, needs_resolution) VALUES (?, ?, ?, ?, ?)`,
 			taskID, st.Title, st.Details, st.Tools, st.NeedsResolution)
 		if err != nil {
-			log.Printf("Error adding subtask: %v", err)
+			return 0, fmt.Errorf("error adding subtask %q: %w", st.Title, err)
 		}
 	}
-	
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit task transaction: %w", err)
+	}
+
 	return taskID, nil
 }
 

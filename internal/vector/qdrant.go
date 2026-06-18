@@ -135,8 +135,11 @@ func InitCollection() error {
 	url := fmt.Sprintf("http://%s:%s/collections/%s", host, port, collection)
 
 	// Check if exists
-	resp, _ := http.Get(url)
-	if resp != nil && resp.StatusCode == http.StatusOK {
+	resp, err := http.Get(url)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	if err == nil && resp != nil && resp.StatusCode == http.StatusOK {
 		return nil
 	}
 
@@ -148,17 +151,27 @@ func InitCollection() error {
 			"distance": "Cosine",
 		},
 	}
-	
-	jsonData, _ := json.Marshal(config)
-	req, _ := http.NewRequest("PUT", createURL, bytes.NewBuffer(jsonData))
-	req.Header.Set("Content-Type", "application/json")
-	
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
+
+	jsonData, err2 := json.Marshal(config)
+	if err2 != nil {
+		return fmt.Errorf("failed to marshal collection config: %w", err2)
 	}
-	defer resp.Body.Close()
+	req, err2 := http.NewRequest("PUT", createURL, bytes.NewBuffer(jsonData))
+	if err2 != nil {
+		return fmt.Errorf("failed to create collection request: %w", err2)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp2, err2 := client.Do(req)
+	if err2 != nil {
+		return err2
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode < 200 || resp2.StatusCode >= 300 {
+		return fmt.Errorf("qdrant collection creation failed with status: %d", resp2.StatusCode)
+	}
 
 	return nil
 }

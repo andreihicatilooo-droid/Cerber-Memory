@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -26,7 +27,12 @@ func SaveFile(srcPath string) (string, string, int64, error) {
 // otherwise to local storage.
 func SaveReader(reader io.Reader, originalName string) (string, string, int64, error) {
 	bucketName := os.Getenv("GCS_BUCKET_NAME")
-	newFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), originalName)
+	safeName := filepath.Base(originalName)
+	safeName = strings.ReplaceAll(safeName, "..", "")
+	if safeName == "" || safeName == "." {
+		safeName = "upload"
+	}
+	newFilename := fmt.Sprintf("%d_%s", time.Now().UnixNano(), safeName)
 
 	if bucketName != "" {
 		ctx := context.Background()

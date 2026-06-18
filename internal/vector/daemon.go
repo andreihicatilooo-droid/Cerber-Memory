@@ -13,6 +13,11 @@ import (
 func StartBackgroundIndexer(ctx context.Context) {
 	log.Println("[Daemon] Starting background vector indexer...")
 
+	// Recover items stuck in 'processing' state from a previous crash
+	if _, recErr := models.DB.Exec("UPDATE vector_index_queue SET status = 'pending' WHERE status = 'processing'"); recErr != nil {
+		log.Printf("[Daemon] Warning: failed to recover stale queue items: %v", recErr)
+	}
+
 	// Initialize collection first if needed
 	err := InitCollection()
 	if err != nil {

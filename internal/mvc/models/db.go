@@ -184,14 +184,24 @@ func createTables() {
 
 // EnsureProject exists and returns its ID
 func EnsureProject(name string, parentName string) (int64, error) {
+	return ensureProjectDepth(name, parentName, 0)
+}
+
+func ensureProjectDepth(name string, parentName string, depth int) (int64, error) {
+	if depth > 10 {
+		return 0, fmt.Errorf("project hierarchy too deep or circular at: %s", name)
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return 0, nil
 	}
+	if parentName != "" && strings.TrimSpace(parentName) == name {
+		return 0, fmt.Errorf("project cannot be its own parent: %s", name)
+	}
 
 	var parentID sql.NullInt64
 	if parentName != "" {
-		pid, err := EnsureProject(parentName, "")
+		pid, err := ensureProjectDepth(parentName, "", depth+1)
 		if err == nil {
 			parentID = sql.NullInt64{Int64: pid, Valid: true}
 		}

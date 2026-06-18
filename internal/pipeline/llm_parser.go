@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/spf13/viper"
@@ -69,7 +70,8 @@ func getGenAIClient(ctx context.Context) (*genai.Client, error) {
 }
 
 func ParseTextWithLLM(text string) ([]ParsedItem, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 	client, err := getGenAIClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GenAI client: %v", err)
@@ -142,7 +144,8 @@ Text to analyze:
 }
 
 func ElaborateIdeaWithLLM(title, description string) ([]ParsedItem, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
 	client, err := getGenAIClient(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GenAI client: %v", err)

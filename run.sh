@@ -34,8 +34,8 @@ if [ -z "$GEMINI_KEY" ] || [ "$GEMINI_KEY" == "your_gemini_api_key_here" ]; then
     exit 1
   fi
   
-  # Обновление ключа в .env
-  sed -i "s|GEMINI_API_KEY=.*|GEMINI_API_KEY=$USER_KEY|g" .env
+  # Обновление ключа в .env (awk безопасно обрабатывает спецсимволы)
+  awk -v key="$USER_KEY" 'BEGIN{FS=OFS="="} /^GEMINI_API_KEY=/ {$2=key} 1' .env > .env.tmp && mv .env.tmp .env
   echo -e "${GREEN}Ключ успешно сохранен в .env!${NC}"
 fi
 
@@ -44,7 +44,7 @@ CURRENT_MASTER_KEY=$(grep "CERBER_MASTER_KEY" .env | cut -d '=' -f2)
 if [ -z "$CURRENT_MASTER_KEY" ] || [ "$CURRENT_MASTER_KEY" == "default-master-key-32-characters" ]; then
   echo -e "${YELLOW}Генерирую уникальный мастер-ключ шифрования...${NC}"
   NEW_MASTER_KEY=$(LC_ALL=C tr -dc 'A-Za-z0-9!@#%^&*()-_+' < /dev/urandom | head -c 32 || true)
-  sed -i "s|CERBER_MASTER_KEY=.*|CERBER_MASTER_KEY=$NEW_MASTER_KEY|g" .env
+  awk -v key="$NEW_MASTER_KEY" 'BEGIN{FS=OFS="="} /^CERBER_MASTER_KEY=/ {$2=key} 1' .env > .env.tmp && mv .env.tmp .env
 fi
 
 echo -e "${GREEN}Сборка и запуск контейнеров...${NC}"

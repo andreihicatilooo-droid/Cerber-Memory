@@ -87,15 +87,44 @@ func RunTUIConfig(useTUI bool) error {
 		}
 	}
 
-	// Save to .env
-	content := fmt.Sprintf("GEMINI_API_KEY=%s\nCERBER_MASTER_KEY=%s\nQDRANT_HOST=%s\nQDRANT_PORT=%s\n",
-		geminiKey, masterKey, qdrantHost, qdrantPort)
-
-	err := os.WriteFile(".env", []byte(content), 0600)
+	// Merge updates into existing .env to preserve other variables
+	err := mergeEnvFile(".env", map[string]string{
+		"GEMINI_API_KEY":    geminiKey,
+		"CERBER_MASTER_KEY": masterKey,
+		"QDRANT_HOST":       qdrantHost,
+		"QDRANT_PORT":       qdrantPort,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to save config: %v", err)
 	}
 
 	fmt.Println("\nConfiguration saved successfully to .env")
 	return nil
+}
+
+func mergeEnvFile(path string, updates map[string]string) error {
+	data, _ := os.ReadFile(path)
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	if len(lines) == 1 && lines[0] == "" {
+		lines = nil
+	}
+
+	updated := make(map[string]bool)
+	for i, line := range lines {
+		if idx := strings.Index(line, "="); idx > 0 {
+			k := line[:idx]
+			if v, ok := updates[k]; ok && v != "" {
+				lines[i] = k + "=" + v
+				updated[k] = true
+			}
+		}
+	}
+
+	for k, v := range updates {
+		if !updated[k] && v != "" {
+			lines = append(lines, k+"="+v)
+		}
+	}
+
+	return os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0600)
 }

@@ -95,6 +95,13 @@ func RouteItems(items []pipeline.ParsedItem) {
 					fmt.Printf("[Router] Saved Task (ID: %d): %s\n", entityID, item.Title)
 				}
 			}
+		case "project":
+			if item.Title != "" {
+				entityID, err = models.EnsureProject(item.Title, item.Workspace)
+				if err == nil {
+					fmt.Printf("[Router] Saved Project (ID: %d): %s\n", entityID, item.Title)
+				}
+			}
 		default:
 			log.Printf("[Router] Unknown item type: %s", item.Type)
 			continue
@@ -102,6 +109,10 @@ func RouteItems(items []pipeline.ParsedItem) {
 
 		if err != nil {
 			log.Printf("[Router] Error saving %s: %v", item.Type, err)
+			continue
+		}
+
+		if entityID == 0 {
 			continue
 		}
 
@@ -116,15 +127,23 @@ func RouteItems(items []pipeline.ParsedItem) {
 			targetID := link.TargetID
 			// If targetID is a name, try to find it in the current batch
 			if id, ok := newEntities[targetID]; ok {
-				_ = models.LinkEntities(entityType, entityID, link.TargetType, id, link.Relation)
-				_ = models.LinkEntities(link.TargetType, id, entityType, entityID, "related_to")
+				if err := models.LinkEntities(entityType, entityID, link.TargetType, id, link.Relation); err != nil {
+					log.Printf("[Router] Error linking %s→%s: %v", entityType, link.TargetType, err)
+				}
+				if err := models.LinkEntities(link.TargetType, id, entityType, entityID, "related_to"); err != nil {
+					log.Printf("[Router] Error back-linking %s→%s: %v", link.TargetType, entityType, err)
+				}
 			}
-			
+
 			if link.URL != "" {
 				resID, _ := models.AddExternalResource("", link.URL, "")
 				if resID != 0 {
-					_ = models.LinkEntities(entityType, entityID, "external_resource", resID, link.Relation)
-					_ = models.LinkEntities("external_resource", resID, entityType, entityID, "source_for")
+					if err := models.LinkEntities(entityType, entityID, "external_resource", resID, link.Relation); err != nil {
+						log.Printf("[Router] Error linking %s to resource: %v", entityType, err)
+					}
+					if err := models.LinkEntities("external_resource", resID, entityType, entityID, "source_for"); err != nil {
+						log.Printf("[Router] Error back-linking resource to %s: %v", entityType, err)
+					}
 					fmt.Printf("[Router] Linked %s to URL: %s\n", entityType, link.URL)
 				}
 			}
@@ -136,8 +155,11 @@ func RouteItems(items []pipeline.ParsedItem) {
 			if pErr != nil {
 				log.Printf("[Router] Error ensuring project %s: %v", item.Project, pErr)
 			} else if projID != 0 {
-				_ = models.AddToProject(projID, entityType, entityID)
-				fmt.Printf("[Router] Linked %s to project: %s\n", entityType, item.Project)
+				if err := models.AddToProject(projID, entityType, entityID); err != nil {
+					log.Printf("[Router] Error adding %s to project: %v", entityType, err)
+				} else {
+					fmt.Printf("[Router] Linked %s to project: %s\n", entityType, item.Project)
+				}
 			}
 		}
 
@@ -147,15 +169,21 @@ func RouteItems(items []pipeline.ParsedItem) {
 			if nErr != nil {
 				log.Printf("[Router] Error ensuring notebook %s: %v", item.Notebook, nErr)
 			} else if nbID != 0 {
-				_ = models.AddToNotebook(nbID, entityType, entityID)
-				fmt.Printf("[Router] Added %s to notebook: %s\n", entityType, item.Notebook)
+				if err := models.AddToNotebook(nbID, entityType, entityID); err != nil {
+					log.Printf("[Router] Error adding %s to notebook: %v", entityType, err)
+				} else {
+					fmt.Printf("[Router] Added %s to notebook: %s\n", entityType, item.Notebook)
+				}
 			}
 		}
 
 		// 4. Handle tagging
-		if len(item.Tags) > 0 && entityID != 0 {
-			_ = models.AddTagsToEntity(entityType, entityID, item.Tags)
-			fmt.Printf("[Router] Added tags to %s: %v\n", entityType, item.Tags)
+		if len(item.Tags) > 0 {
+			if err := models.AddTagsToEntity(entityType, entityID, item.Tags); err != nil {
+				log.Printf("[Router] Error tagging %s: %v", entityType, err)
+			} else {
+				fmt.Printf("[Router] Added tags to %s: %v\n", entityType, item.Tags)
+			}
 		}
 	}
 }

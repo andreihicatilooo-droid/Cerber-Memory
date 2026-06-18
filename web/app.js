@@ -1,3 +1,9 @@
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str ?? '');
+    return div.innerHTML;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Tab Navigation
     const navItems = document.querySelectorAll('.nav-item');
@@ -221,11 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 card.innerHTML = `
                     <div class="result-header">
-                        <span class="result-type">${entityType}</span>
+                        <span class="result-type">${escapeHtml(entityType)}</span>
                         <span class="result-score">Сходство: ${(score * 100).toFixed(1)}%</span>
                     </div>
-                    <div class="result-title">${title}</div>
-                    <div class="result-text">${text.replace(/\n/g, '<br>')}</div>
+                    <div class="result-title">${escapeHtml(title)}</div>
+                    <div class="result-text">${escapeHtml(text).replace(/\n/g, '<br>')}</div>
                 `;
                 searchResultsContainer.appendChild(card);
             });

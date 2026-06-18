@@ -2,6 +2,7 @@ package models
 
 import (
 	"cerber-memory/internal/crypto"
+	"fmt"
 	"log"
 )
 
@@ -19,11 +20,10 @@ func UpsertCoreMemory(key, content, category string) (int64, error) {
 	processedContent := content
 	if category == "credentials" {
 		enc, err := crypto.Encrypt(content)
-		if err == nil {
-			processedContent = enc
-		} else {
-			log.Printf("Encryption failed, saving as plain text: %v", err)
+		if err != nil {
+			return 0, fmt.Errorf("failed to encrypt credentials: %w", err)
 		}
+		processedContent = enc
 	}
 
 	query := `
