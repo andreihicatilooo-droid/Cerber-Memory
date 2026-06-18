@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: cerber-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./data/qdrant_storage:/qdrant/storage
+    restart: always
+
+  cerber:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cerber-app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    depends_on:
+      - qdrant
+    restart: always
+
