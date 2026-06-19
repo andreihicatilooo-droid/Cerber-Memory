@@ -187,6 +187,7 @@ func EnsureProject(name string, parentName string) (int64, error) {
 	return ensureProjectDepth(name, parentName, 0)
 }
 
+// ensureProjectDepth recursively handles project hierarchy with circular reference detection.
 func ensureProjectDepth(name string, parentName string, depth int) (int64, error) {
 	if depth > 10 {
 		return 0, fmt.Errorf("project hierarchy too deep or circular at: %s", name)
@@ -220,11 +221,13 @@ func ensureProjectDepth(name string, parentName string, depth int) (int64, error
 	return res.LastInsertId()
 }
 
+// AddToProject associates an entity with a project.
 func AddToProject(projectID int64, entityType string, entityID int64) error {
 	_, err := DB.Exec("INSERT OR IGNORE INTO project_entities (project_id, entity_type, entity_id) VALUES (?, ?, ?)", projectID, entityType, entityID)
 	return err
 }
 
+// EnsureNotebook creates or retrieves a notebook by name.
 func EnsureNotebook(name string) (int64, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -244,11 +247,13 @@ func EnsureNotebook(name string) (int64, error) {
 	return res.LastInsertId()
 }
 
+// AddToNotebook associates an entity with a notebook.
 func AddToNotebook(notebookID int64, entityType string, entityID int64) error {
 	_, err := DB.Exec("INSERT OR IGNORE INTO notebook_entities (notebook_id, entity_type, entity_id) VALUES (?, ?, ?)", notebookID, entityType, entityID)
 	return err
 }
 
+// AddTagsToEntity attaches multiple tags to an entity, creating them if needed.
 func AddTagsToEntity(entityType string, entityID int64, tagNames []string) error {
 	for _, name := range tagNames {
 		name = strings.TrimSpace(strings.ToLower(name))
@@ -273,11 +278,13 @@ func AddTagsToEntity(entityType string, entityID int64, tagNames []string) error
 	return nil
 }
 
+// EnqueueVectorIndex queues an entity for vector indexing in the background.
 func EnqueueVectorIndex(entityType string, entityID int64) error {
 	_, err := DB.Exec("INSERT INTO vector_index_queue (entity_type, entity_id, status) VALUES (?, ?, 'pending')", entityType, entityID)
 	return err
 }
 
+// CloseDB closes the database connection.
 func CloseDB() {
 	if DB != nil {
 		DB.Close()

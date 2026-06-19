@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-// CreateTask creates a new task with simplified API
+// CreateTask creates a new task with defaults and queues it for vector indexing.
 func CreateTask(title, description, priority, category string) (int64, error) {
 	if description == "" {
 		return 0, fmt.Errorf("description is required")
@@ -28,7 +28,7 @@ func CreateTask(title, description, priority, category string) (int64, error) {
 	return res.LastInsertId()
 }
 
-// CreateIdea creates a new idea with simplified API
+// CreateIdea creates a new idea with defaults and queues it for vector indexing.
 func CreateIdea(title, description, category, priority string) (int64, error) {
 	if description == "" {
 		return 0, fmt.Errorf("description is required")
@@ -51,7 +51,7 @@ func CreateIdea(title, description, category, priority string) (int64, error) {
 	return AddIdea(idea)
 }
 
-// CreateNote creates a new note with simplified API
+// CreateNote creates a new note and queues it for vector indexing.
 func CreateNote(title, content string) (int64, error) {
 	if content == "" {
 		return 0, fmt.Errorf("content is required")
@@ -62,7 +62,7 @@ func CreateNote(title, content string) (int64, error) {
 	return AddNote(title, content)
 }
 
-// CreateDocument creates a new document with simplified API
+// CreateDocument creates a new document and queues it for vector indexing.
 func CreateDocument(title, content string) (int64, error) {
 	if content == "" {
 		return 0, fmt.Errorf("content is required")
@@ -73,7 +73,7 @@ func CreateDocument(title, content string) (int64, error) {
 	return AddDocument(title, content)
 }
 
-// QueryTasks retrieves tasks with optional filters
+// QueryTasks retrieves tasks with optional filters for status, priority, and category.
 func QueryTasks(status, priority, category string, limit int) ([]map[string]interface{}, error) {
 	query := "SELECT id, title, description, status, priority, category, created_at FROM tasks WHERE 1=1"
 	var args []interface{}
@@ -126,7 +126,7 @@ func QueryTasks(status, priority, category string, limit int) ([]map[string]inte
 	return results, nil
 }
 
-// QueryIdeas retrieves ideas with optional filters
+// QueryIdeas retrieves ideas with optional filters for status, category, and priority.
 func QueryIdeas(status, category, priority string, limit int) ([]map[string]interface{}, error) {
 	query := "SELECT id, title, description, status, category, priority, created_at FROM ideas WHERE 1=1"
 	var args []interface{}
@@ -179,7 +179,7 @@ func QueryIdeas(status, category, priority string, limit int) ([]map[string]inte
 	return results, nil
 }
 
-// QueryNotes retrieves recent notes
+// QueryNotes retrieves recent notes with optional limit.
 func QueryNotes(limit int) ([]map[string]interface{}, error) {
 	query := "SELECT id, title, content, created_at FROM notes ORDER BY created_at DESC LIMIT ?"
 	rows, err := DB.Query(query, limit)
@@ -216,7 +216,7 @@ func QueryNotes(limit int) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-// QueryDocuments retrieves recent documents
+// QueryDocuments retrieves recent documents with optional limit and version info.
 func QueryDocuments(limit int) ([]map[string]interface{}, error) {
 	query := "SELECT id, title, content, version, created_at FROM documents ORDER BY created_at DESC LIMIT ?"
 	rows, err := DB.Query(query, limit)
@@ -256,7 +256,7 @@ func QueryDocuments(limit int) ([]map[string]interface{}, error) {
 	return results, nil
 }
 
-// QueryProjects retrieves projects
+// QueryProjects retrieves projects with optional limit.
 func QueryProjects(limit int) ([]map[string]interface{}, error) {
 	query := "SELECT id, name, description, created_at FROM projects ORDER BY created_at DESC LIMIT ?"
 	rows, err := DB.Query(query, limit)
