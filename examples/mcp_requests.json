@@ -1,0 +1,264 @@
+{
+  "examples": [
+    {
+      "name": "Initialize MCP Server",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {}
+      },
+      "expected_response": {
+        "serverInfo": {
+          "name": "cerber-memory-mcp",
+          "version": "1.0.0"
+        }
+      }
+    },
+    {
+      "name": "List all available tools",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/list",
+        "params": {}
+      },
+      "notes": "Returns all available tools with their schemas and descriptions"
+    },
+    {
+      "name": "Semantic search for 'API development'",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "memory/semantic_search",
+        "params": {
+          "query": "API development and REST endpoints",
+          "limit": 5
+        }
+      },
+      "expected_response": {
+        "query": "API development and REST endpoints",
+        "count": 3,
+        "results": [
+          {
+            "id": 1,
+            "type": "task",
+            "title": "Implement REST API",
+            "similarity": 0.92
+          }
+        ]
+      }
+    },
+    {
+      "name": "Save a new task",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 4,
+        "method": "memory/save",
+        "params": {
+          "type": "task",
+          "title": "Implement user authentication",
+          "content": "Create JWT-based authentication system with OAuth2 support",
+          "category": "feature",
+          "priority": "high",
+          "tags": ["auth", "security", "backend"]
+        }
+      },
+      "expected_response": {
+        "id": 123,
+        "type": "task",
+        "status": "created",
+        "queued_index": true
+      }
+    },
+    {
+      "name": "Save an idea",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 5,
+        "method": "memory/save",
+        "params": {
+          "type": "idea",
+          "title": "Use vector embeddings for search",
+          "content": "Could use embeddings to improve search relevance and speed up queries",
+          "category": "optimization",
+          "priority": "medium",
+          "tags": ["ai", "search", "performance"]
+        }
+      }
+    },
+    {
+      "name": "Save a note",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 6,
+        "method": "memory/save",
+        "params": {
+          "type": "note",
+          "title": "Meeting with stakeholders",
+          "content": "Discussed timeline for Q4 release. Need to prioritize API stability and documentation.",
+          "tags": ["meeting", "q4", "planning"]
+        }
+      }
+    },
+    {
+      "name": "Query all pending high-priority tasks",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "memory/query_structured",
+        "params": {
+          "entity_type": "task",
+          "status": "pending",
+          "priority": "high",
+          "limit": 10
+        }
+      },
+      "expected_response": {
+        "entity_type": "task",
+        "filters": {
+          "status": "pending",
+          "priority": "high"
+        },
+        "results": [
+          {
+            "id": 1,
+            "title": "Task title",
+            "status": "pending",
+            "priority": "high"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Query ideas by category",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 8,
+        "method": "memory/query_structured",
+        "params": {
+          "entity_type": "idea",
+          "category": "feature",
+          "limit": 5
+        }
+      }
+    },
+    {
+      "name": "Get all notes",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 9,
+        "method": "memory/query_structured",
+        "params": {
+          "entity_type": "note",
+          "limit": 20
+        }
+      }
+    },
+    {
+      "name": "Get knowledge graph",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 10,
+        "method": "memory/get_graph",
+        "params": {}
+      },
+      "expected_response": {
+        "nodes": [
+          {
+            "id": "task_1",
+            "type": "task",
+            "title": "Implement API"
+          },
+          {
+            "id": "idea_2",
+            "type": "idea",
+            "title": "Use caching"
+          }
+        ],
+        "edges": [
+          {
+            "source": "task_1",
+            "target": "idea_2",
+            "label": "relates_to"
+          }
+        ],
+        "count": {
+          "nodes": 150,
+          "edges": 280
+        }
+      }
+    },
+    {
+      "name": "Store API key securely",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 11,
+        "method": "credentials/set",
+        "params": {
+          "key": "openai_api_key",
+          "value": "sk-proj-1234567890abcdef",
+          "category": "api_key"
+        }
+      },
+      "expected_response": {
+        "id": 45,
+        "key": "openai_api_key",
+        "status": "saved",
+        "category": "api_key"
+      },
+      "warning": "Never share the actual value in logs or output"
+    },
+    {
+      "name": "Retrieve stored credential",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 12,
+        "method": "credentials/get",
+        "params": {
+          "key": "openai_api_key"
+        }
+      },
+      "expected_response": {
+        "key": "openai_api_key",
+        "value": "sk-proj-..."
+      },
+      "warning": "This operation is logged for audit purposes"
+    },
+    {
+      "name": "Query documents",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 13,
+        "method": "memory/query_structured",
+        "params": {
+          "entity_type": "document",
+          "limit": 10
+        }
+      }
+    },
+    {
+      "name": "Query projects",
+      "request": {
+        "jsonrpc": "2.0",
+        "id": 14,
+        "method": "memory/query_structured",
+        "params": {
+          "entity_type": "project",
+          "limit": 10
+        }
+      }
+    }
+  ],
+  "notes": {
+    "protocol": "JSON-RPC 2.0",
+    "transport": "STDIO (stdin/stdout)",
+    "error_codes": {
+      "-32601": "Method not found",
+      "-32603": "Internal error",
+      "-32602": "Invalid params"
+    },
+    "rate_limiting": "Not yet implemented",
+    "batch_requests": "Not yet supported"
+  }
+}

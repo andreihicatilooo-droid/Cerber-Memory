@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "cerber-memory": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd /path/to/cerber-memory && ./scripts/start_mcp.sh"
+      ],
+      "env": {
+        "DB_PATH": "./data/cerber_memory.db",
+        "QDRANT_HOST": "localhost",
+        "QDRANT_PORT": "6333",
+        "GEMINI_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
