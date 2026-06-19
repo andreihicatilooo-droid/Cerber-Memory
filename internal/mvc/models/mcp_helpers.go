@@ -1,8 +1,14 @@
 package models
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"log"
+	"os"
 )
 
 // CreateTask creates a new task with defaults and queues it for vector indexing.
@@ -296,9 +302,87 @@ func QueryProjects(limit int) ([]map[string]interface{}, error) {
 }
 
 // Credentials management with encryption
+
+// getEncryptionKey derives a 32-byte AES-256 key from environment or fixed key.
+func getEncryptionKey() ([]byte, error) {
+	keyStr := os.Getenv("CREDENTIAL_ENCRYPTION_KEY")
+	if keyStr == "" {
+		keyStr = "cerber-memory-default-32-byte-key"
+	}
+	key := []byte(keyStr)
+	if len(key) < 32 {
+		for len(key) < 32 {
+			key = append(key, 0)
+		}
+	}
+	return key[:32], nil
+}
+
+// encryptCredential encrypts a credential value using AES-256-GCM.
+func encryptCredential(plaintext string) (string, error) {
+	key, err := getEncryptionKey()
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, aead.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := aead.Seal(nonce, nonce, []byte(plaintext), nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
+}
+
+// decryptCredential decrypts a credential value using AES-256-GCM.
+func decryptCredential(ciphertext string) (string, error) {
+	key, err := getEncryptionKey()
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	aead, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	data, err := base64.StdEncoding.DecodeString(ciphertext)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := aead.NonceSize()
+	if len(data) < nonceSize {
+		return "", fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, encryptedData := data[:nonceSize], data[nonceSize:]
+	plaintext, err := aead.Open(nil, nonce, encryptedData, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
+}
+
 // GetCredential retrieves a decrypted credential
 func GetCredential(key string) (string, error) {
-	var encryptedValue []byte
+	var encryptedValue string
 
 	query := `SELECT content FROM core_memory
 	          WHERE key = ? AND category = 'credentials'`
@@ -308,11 +392,15 @@ func GetCredential(key string) (string, error) {
 		return "", fmt.Errorf("credential not found: %v", err)
 	}
 
-	// For now, return as-is (implement actual decryption later)
-	return string(encryptedValue), nil
+	plaintext, err := decryptCredential(encryptedValue)
+	if err != nil {
+		return "", fmt.Errorf("failed to decrypt credential: %v", err)
+	}
+
+	return plaintext, nil
 }
 
-// SetCredential stores a credential securely (encryption in next phase)
+// SetCredential stores a credential securely with AES-256 encryption.
 func SetCredential(key, value, category string) (int64, error) {
 	if key == "" || value == "" {
 		return 0, fmt.Errorf("key and value are required")
@@ -322,6 +410,13 @@ func SetCredential(key, value, category string) (int64, error) {
 		category = "api_key"
 	}
 
+	// Encrypt the value before storing
+	encryptedValue, err := encryptCredential(value)
+	if err != nil {
+		log.Printf("Error encrypting credential: %v", err)
+		return 0, err
+	}
+
 	// Store credentials with credentials category to prevent indexing
 	// Type (api_key, password, token, database) is preserved in the returned response
 	// but credentials are marked with category='credentials' for secure retrieval
@@ -329,14 +424,18 @@ func SetCredential(key, value, category string) (int64, error) {
 	          VALUES (?, ?, 'credentials')
 	          ON CONFLICT(key) DO UPDATE SET content = ?`
 
-	res, err := DB.Exec(query, key, value, value)
+	_, err = DB.Exec(query, key, encryptedValue, encryptedValue)
 	if err != nil {
 		log.Printf("Error setting credential: %v", err)
 		return 0, err
 	}
 
-	id, err := res.LastInsertId()
+	// LastInsertId returns 0 for UPDATE, so query for the actual ID
+	var id int64
+	queryID := `SELECT id FROM core_memory WHERE key = ? AND category = 'credentials'`
+	err = DB.QueryRow(queryID, key).Scan(&id)
 	if err != nil {
+		log.Printf("Error retrieving credential ID: %v", err)
 		return 0, err
 	}
 

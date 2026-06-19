@@ -94,11 +94,17 @@ func (s *MCPServer) Start() {
 			continue
 		}
 
-		response := s.handleRequest(&req)
-		if response != nil {
-			if data, err := json.Marshal(response); err == nil {
-				fmt.Println(string(data))
+		// Only send response if this is a request (has ID), not a notification
+		if isRequest(&req) {
+			response := s.handleRequest(&req)
+			if response != nil {
+				if data, err := json.Marshal(response); err == nil {
+					fmt.Println(string(data))
+				}
 			}
+		} else {
+			// Still dispatch notification, but don't send response per JSON-RPC spec
+			s.handleRequest(&req)
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -297,7 +303,7 @@ func (s *MCPServer) handleToolsList(params json.RawMessage) (interface{}, error)
 	}, nil
 }
 
-// handleToolsCall invokes a named tool with the provided arguments.
+// handleToolsCall invokes a named tool with the provided arguments and wraps result in CallToolResult.
 func (s *MCPServer) handleToolsCall(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Name      string          `json:"name"`
@@ -315,7 +321,21 @@ func (s *MCPServer) handleToolsCall(params json.RawMessage) (interface{}, error)
 		return nil, fmt.Errorf("tool not found: %s", req.Name)
 	}
 
-	return handler(req.Arguments)
+	result, err := handler(req.Arguments)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wrap result in MCP CallToolResult structure
+	resultJSON, _ := json.Marshal(result)
+	return map[string]interface{}{
+		"content": []map[string]interface{}{
+			{
+				"type": "text",
+				"text": string(resultJSON),
+			},
+		},
+	}, nil
 }
 
 // handleSemanticSearch performs vector-based semantic search across all indexed memory.
@@ -602,6 +622,11 @@ func enrichSearchResult(result vector.QdrantSearchResult) map[string]interface{}
 		"similarity": result.Score,
 		"payload":    payload,
 	}
+}
+
+// isRequest checks if this is a request (has ID) vs a notification (no ID). Per JSON-RPC 2.0 spec.
+func isRequest(req *JSONRPCRequest) bool {
+	return req.ID != nil
 }
 
 // min returns the smaller of two integers.
