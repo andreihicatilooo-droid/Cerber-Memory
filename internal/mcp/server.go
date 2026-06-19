@@ -313,6 +313,11 @@ func (s *MCPServer) handleToolsCall(params json.RawMessage) (interface{}, error)
 		return nil, fmt.Errorf("invalid parameters: %v", err)
 	}
 
+	// Prevent tools/call from being called recursively to avoid infinite loops
+	if req.Name == "tools/call" {
+		return nil, fmt.Errorf("tools/call cannot be called recursively")
+	}
+
 	s.mu.RLock()
 	handler, exists := s.handlers[req.Name]
 	s.mu.RUnlock()

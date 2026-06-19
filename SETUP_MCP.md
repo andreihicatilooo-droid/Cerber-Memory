@@ -38,7 +38,14 @@ DB_PATH=./data/cerber_memory.db
 QDRANT_HOST=localhost
 QDRANT_PORT=6333
 GEMINI_API_KEY=your-gemini-api-key-here
+CERBER_MASTER_KEY=your-32-byte-encryption-key-here
 EOF
+```
+
+**Note:** `CERBER_MASTER_KEY` must be exactly 32 bytes (256-bit) for credential encryption. Generate one:
+```bash
+openssl rand -hex 16  # generates 32-char hex string (16 bytes) - pad to 32 bytes
+# Or use a 32-character string: "abcdefghijklmnopqrstuvwxyz123456"
 ```
 
 ### 4️⃣ Найдите путь к проекту
@@ -72,7 +79,8 @@ nano ~/.config/Claude/claude_desktop_config.json
         "DB_PATH": "./data/cerber_memory.db",
         "QDRANT_HOST": "localhost",
         "QDRANT_PORT": "6333",
-        "GEMINI_API_KEY": "your-gemini-api-key-here"
+        "GEMINI_API_KEY": "your-gemini-api-key-here",
+        "CERBER_MASTER_KEY": "your-32-byte-encryption-key-here"
       }
     }
   }
