@@ -598,6 +598,7 @@ func enrichSearchResult(result vector.QdrantSearchResult) map[string]interface{}
 	}
 }
 
+// min returns the smaller of two integers.
 func min(a, b int) int {
 	if a < b {
 		return a

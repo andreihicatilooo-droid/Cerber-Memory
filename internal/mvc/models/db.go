@@ -13,6 +13,7 @@ import (
 
 var DB *sql.DB
 
+// InitDB initializes the SQLite database and creates all required tables.
 func InitDB(dbPath string) {
 	// Ensure directory exists
 	dir := filepath.Dir(dbPath)
@@ -34,6 +35,7 @@ func InitDB(dbPath string) {
 	createTables()
 }
 
+// createTables executes all schema creation queries to set up the database.
 func createTables() {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS projects (
@@ -344,6 +346,7 @@ type MindmapGraph struct {
 	Edges []GraphEdge `json:"edges"`
 }
 
+// GetMindmapGraph builds a knowledge graph showing relationships between all memory entities.
 func GetMindmapGraph() (MindmapGraph, error) {
 	var graph MindmapGraph
 	graph.Nodes = make([]GraphNode, 0)
