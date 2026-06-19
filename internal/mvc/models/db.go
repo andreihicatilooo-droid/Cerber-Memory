@@ -182,7 +182,7 @@ func createTables() {
 	}
 }
 
-// EnsureProject exists and returns its ID
+// EnsureProject creates or retrieves a project by name with optional parent project.
 func EnsureProject(name string, parentName string) (int64, error) {
 	return ensureProjectDepth(name, parentName, 0)
 }

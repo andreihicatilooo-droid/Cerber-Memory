@@ -48,6 +48,7 @@ func NewMCPServer() *MCPServer {
 	return server
 }
 
+// registerHandlers maps MCP method names to their handler functions.
 func (s *MCPServer) registerHandlers() {
 	s.handlers["initialize"] = s.handleInitialize
 	s.handlers["tools/list"] = s.handleToolsList
@@ -60,6 +61,7 @@ func (s *MCPServer) registerHandlers() {
 	s.handlers["memory_get_graph"] = s.handleGetGraph
 }
 
+// Start begins the MCP server, reading JSON-RPC requests from stdin and writing responses to stdout.
 func (s *MCPServer) Start() {
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -98,6 +100,7 @@ func (s *MCPServer) Start() {
 	}
 }
 
+// handleRequest dispatches a JSON-RPC request to its registered handler and returns the response.
 func (s *MCPServer) handleRequest(req *JSONRPCRequest) *JSONRPCResponse {
 	s.mu.RLock()
 	handler, exists := s.handlers[req.Method]
@@ -133,6 +136,7 @@ func (s *MCPServer) handleRequest(req *JSONRPCRequest) *JSONRPCResponse {
 	}
 }
 
+// handleInitialize returns the MCP protocol version and server information.
 func (s *MCPServer) handleInitialize(params json.RawMessage) (interface{}, error) {
 	return map[string]interface{}{
 		"protocolVersion": "2024-11-05",
@@ -146,6 +150,7 @@ func (s *MCPServer) handleInitialize(params json.RawMessage) (interface{}, error
 	}, nil
 }
 
+// handleToolsList returns the schema and descriptions for all available MCP tools.
 func (s *MCPServer) handleToolsList(params json.RawMessage) (interface{}, error) {
 	return map[string]interface{}{
 		"tools": []map[string]interface{}{
@@ -286,6 +291,7 @@ func (s *MCPServer) handleToolsList(params json.RawMessage) (interface{}, error)
 	}, nil
 }
 
+// handleToolsCall invokes a named tool with the provided arguments.
 func (s *MCPServer) handleToolsCall(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Name      string          `json:"name"`
@@ -306,6 +312,7 @@ func (s *MCPServer) handleToolsCall(params json.RawMessage) (interface{}, error)
 	return handler(req.Arguments)
 }
 
+// handleSemanticSearch performs vector-based semantic search across all indexed memory.
 func (s *MCPServer) handleSemanticSearch(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Query string `json:"query"`
@@ -350,6 +357,7 @@ func (s *MCPServer) handleSemanticSearch(params json.RawMessage) (interface{}, e
 	}, nil
 }
 
+// handleSaveMemory creates a new memory item and queues it for vector indexing.
 func (s *MCPServer) handleSaveMemory(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Type     string   `json:"type"`
@@ -440,6 +448,7 @@ func (s *MCPServer) handleSaveMemory(params json.RawMessage) (interface{}, error
 	}, nil
 }
 
+// handleQueryStructured returns memory items filtered by entity type, status, category, and priority.
 func (s *MCPServer) handleQueryStructured(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		EntityType string `json:"entity_type"`
@@ -492,6 +501,7 @@ func (s *MCPServer) handleQueryStructured(params json.RawMessage) (interface{}, 
 	}, nil
 }
 
+// handleCredentialsGet retrieves a stored credential by key.
 func (s *MCPServer) handleCredentialsGet(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Key string `json:"key"`
@@ -511,6 +521,7 @@ func (s *MCPServer) handleCredentialsGet(params json.RawMessage) (interface{}, e
 	}, nil
 }
 
+// handleCredentialsSet stores a credential securely, protected from vector indexing.
 func (s *MCPServer) handleCredentialsSet(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Key      string `json:"key"`
@@ -538,6 +549,7 @@ func (s *MCPServer) handleCredentialsSet(params json.RawMessage) (interface{}, e
 	}, nil
 }
 
+// handleGetGraph returns the knowledge graph of all memory connections.
 func (s *MCPServer) handleGetGraph(params json.RawMessage) (interface{}, error) {
 	graph, err := models.GetMindmapGraph()
 	if err != nil {
@@ -554,6 +566,7 @@ func (s *MCPServer) handleGetGraph(params json.RawMessage) (interface{}, error) 
 	}, nil
 }
 
+// enrichSearchResult converts a vector search result into a structured response with entity metadata.
 func enrichSearchResult(result vector.QdrantSearchResult) map[string]interface{} {
 	payload := result.Payload
 	entityType, ok := payload["entity_type"].(string)
