@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
 	"cerber-memory/internal/mcp"
 	"cerber-memory/internal/mvc/models"
+	"cerber-memory/internal/vector"
 	"github.com/joho/godotenv"
 )
 
@@ -21,6 +23,11 @@ func main() {
 
 	models.InitDB(dbPath)
 	defer models.CloseDB()
+
+	// Start background vector indexer
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go vector.StartBackgroundIndexer(ctx)
 
 	// Create and start MCP server
 	server := mcp.NewMCPServer()

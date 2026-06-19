@@ -16,7 +16,7 @@
 
 ```bash
 cd /path/to/cerber-memory
-git pull origin claude/blissful-ramanujan-im329v
+git pull origin main
 ```
 
 ### 2️⃣ Соберите MCP сервер

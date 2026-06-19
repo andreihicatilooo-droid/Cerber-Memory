@@ -51,16 +51,18 @@ func NewMCPServer() *MCPServer {
 func (s *MCPServer) registerHandlers() {
 	s.handlers["initialize"] = s.handleInitialize
 	s.handlers["tools/list"] = s.handleToolsList
-	s.handlers["memory/semantic_search"] = s.handleSemanticSearch
-	s.handlers["memory/save"] = s.handleSaveMemory
-	s.handlers["memory/query_structured"] = s.handleQueryStructured
-	s.handlers["credentials/get"] = s.handleCredentialsGet
-	s.handlers["credentials/set"] = s.handleCredentialsSet
-	s.handlers["memory/get_graph"] = s.handleGetGraph
+	s.handlers["tools/call"] = s.handleToolsCall
+	s.handlers["memory_semantic_search"] = s.handleSemanticSearch
+	s.handlers["memory_save"] = s.handleSaveMemory
+	s.handlers["memory_query_structured"] = s.handleQueryStructured
+	s.handlers["credentials_get"] = s.handleCredentialsGet
+	s.handlers["credentials_set"] = s.handleCredentialsSet
+	s.handlers["memory_get_graph"] = s.handleGetGraph
 }
 
 func (s *MCPServer) Start() {
 	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -69,7 +71,18 @@ func (s *MCPServer) Start() {
 
 		var req JSONRPCRequest
 		if err := json.Unmarshal([]byte(line), &req); err != nil {
-			log.Printf("Failed to parse request: %v", err)
+			resp := &JSONRPCResponse{
+				Jsonrpc: "2.0",
+				ID:      nil,
+				Error: &JSONRPCError{
+					Code:    -32700,
+					Message: "Parse error",
+					Data:    err.Error(),
+				},
+			}
+			if data, marshalErr := json.Marshal(resp); marshalErr == nil {
+				fmt.Println(string(data))
+			}
 			continue
 		}
 
@@ -79,6 +92,9 @@ func (s *MCPServer) Start() {
 				fmt.Println(string(data))
 			}
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Printf("stdin scanner error: %v", err)
 	}
 }
 
@@ -270,6 +286,26 @@ func (s *MCPServer) handleToolsList(params json.RawMessage) (interface{}, error)
 	}, nil
 }
 
+func (s *MCPServer) handleToolsCall(params json.RawMessage) (interface{}, error) {
+	var req struct {
+		Name      string          `json:"name"`
+		Arguments json.RawMessage `json:"arguments"`
+	}
+	if err := json.Unmarshal(params, &req); err != nil {
+		return nil, fmt.Errorf("invalid parameters: %v", err)
+	}
+
+	s.mu.RLock()
+	handler, exists := s.handlers[req.Name]
+	s.mu.RUnlock()
+
+	if !exists {
+		return nil, fmt.Errorf("tool not found: %s", req.Name)
+	}
+
+	return handler(req.Arguments)
+}
+
 func (s *MCPServer) handleSemanticSearch(params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Query string `json:"query"`
@@ -279,7 +315,7 @@ func (s *MCPServer) handleSemanticSearch(params json.RawMessage) (interface{}, e
 		return nil, fmt.Errorf("invalid parameters: %v", err)
 	}
 
-	if req.Limit == 0 {
+	if req.Limit <= 0 {
 		req.Limit = 5
 	}
 	if req.Limit > 20 {
@@ -368,7 +404,10 @@ func (s *MCPServer) handleSaveMemory(params json.RawMessage) (interface{}, error
 		entityType = "document"
 
 	case "project":
-		id, err := models.EnsureProject(req.Title, "")
+		if req.Title == "" {
+			return nil, fmt.Errorf("project title is required")
+		}
+		id, err := models.EnsureProject(req.Title, req.Content)
 		if err != nil {
 			return nil, err
 		}
@@ -387,15 +426,17 @@ func (s *MCPServer) handleSaveMemory(params json.RawMessage) (interface{}, error
 	}
 
 	// Queue for vector indexing
+	queuedIndex := true
 	if err := models.EnqueueVectorIndex(entityType, entityID); err != nil {
 		log.Printf("Warning: failed to queue vector index: %v", err)
+		queuedIndex = false
 	}
 
 	return map[string]interface{}{
 		"id":           entityID,
 		"type":         entityType,
 		"status":       "created",
-		"queued_index": true,
+		"queued_index": queuedIndex,
 	}, nil
 }
 
@@ -411,7 +452,7 @@ func (s *MCPServer) handleQueryStructured(params json.RawMessage) (interface{}, 
 		return nil, fmt.Errorf("invalid parameters: %v", err)
 	}
 
-	if req.Limit == 0 {
+	if req.Limit <= 0 {
 		req.Limit = 10
 	}
 	if req.Limit > 50 {
@@ -520,38 +561,27 @@ func enrichSearchResult(result vector.QdrantSearchResult) map[string]interface{}
 		return nil
 	}
 
+	entityID, _ := payload["entity_id"].(float64)
+
 	var title, content string
-	switch entityType {
-	case "task":
-		if t, ok := payload["title"].(string); ok {
-			title = t
-		}
-		if c, ok := payload["description"].(string); ok {
-			content = c
-		}
-	case "idea":
-		if t, ok := payload["title"].(string); ok {
-			title = t
-		}
-		if c, ok := payload["description"].(string); ok {
-			content = c
-		}
-	case "note", "document":
-		if t, ok := payload["title"].(string); ok {
-			title = t
-		}
-		if c, ok := payload["content"].(string); ok {
-			content = c
-		}
+	if t, ok := payload["title"].(string); ok {
+		title = t
+	}
+	if c, ok := payload["text"].(string); ok {
+		content = c
+	}
+
+	if len(content) > 200 {
+		content = content[:200]
 	}
 
 	return map[string]interface{}{
-		"id":           result.ID,
-		"type":         entityType,
-		"title":        title,
-		"content":      content[:min(len(content), 200)],
-		"similarity":   result.Score,
-		"payload":      payload,
+		"id":         int64(entityID),
+		"type":       entityType,
+		"title":      title,
+		"content":    content,
+		"similarity": result.Score,
+		"payload":    payload,
 	}
 }
 

@@ -93,7 +93,7 @@ GEMINI_EMBEDDING_MODEL=text-embedding-004
 
 ## 🛠️ Доступные инструменты
 
-### 1. `memory_semantic_search`
+### 1. `memory/semantic_search`
 
 Поиск по всем данным используя семантическое подобие.
 
@@ -276,7 +276,7 @@ GEMINI_EMBEDDING_MODEL=text-embedding-004
      Поищи связанные задачи и идеи, потом создай новую задачу."
 
 Claude использует:
-1. memory_semantic_search с query="API для управления памятью"
+1. memory/semantic_search с query="API для управления памятью"
 2. memory_save для создания новой задачи
 3. memory_query_structured с фильтром status=pending
 ```

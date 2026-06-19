@@ -296,6 +296,10 @@ func GetEntityText(entityType string, entityID int64) (string, string, error) {
 			return "", "", fmt.Errorf("cannot fetch text for credentials category")
 		}
 		return key, content, nil
+	case "task":
+		var title, description string
+		err := DB.QueryRow("SELECT title, description FROM tasks WHERE id = ?", entityID).Scan(&title, &description)
+		return title, description, err
 	case "note":
 		var title, content string
 		err := DB.QueryRow("SELECT title, content FROM notes WHERE id = ?", entityID).Scan(&title, &content)
@@ -308,6 +312,10 @@ func GetEntityText(entityType string, entityID int64) (string, string, error) {
 		var title, content string
 		err := DB.QueryRow("SELECT title, content FROM documents WHERE id = ?", entityID).Scan(&title, &content)
 		return title, content, err
+	case "project":
+		var name, description string
+		err := DB.QueryRow("SELECT name, COALESCE(description, '') FROM projects WHERE id = ?", entityID).Scan(&name, &description)
+		return name, description, err
 	}
 	return "", "", fmt.Errorf("unknown entity type: %s", entityType)
 }

@@ -4,6 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "Building MCP server..."
+mkdir -p ./bin
 go build -o ./bin/cerber-mcp ./cmd/mcp
 
 echo "Starting Cerber Memory MCP Server..."

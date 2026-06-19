@@ -25,11 +25,7 @@ func CreateTask(title, description, priority, category string) (int64, error) {
 		return 0, err
 	}
 
-	id, err := res.LastInsertId()
-	if err == nil {
-		_ = EnqueueVectorIndex("task", id)
-	}
-	return id, err
+	return res.LastInsertId()
 }
 
 // CreateIdea creates a new idea with simplified API
@@ -124,6 +120,9 @@ func QueryTasks(status, priority, category string, limit int) ([]map[string]inte
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return results, nil
 }
 
@@ -174,6 +173,9 @@ func QueryIdeas(status, category, priority string, limit int) ([]map[string]inte
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return results, nil
 }
 
@@ -208,6 +210,9 @@ func QueryNotes(limit int) ([]map[string]interface{}, error) {
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return results, nil
 }
 
@@ -245,6 +250,9 @@ func QueryDocuments(limit int) ([]map[string]interface{}, error) {
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return results, nil
 }
 
@@ -281,6 +289,9 @@ func QueryProjects(limit int) ([]map[string]interface{}, error) {
 		})
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return results, nil
 }
 
@@ -301,7 +312,7 @@ func GetCredential(key string) (string, error) {
 	return string(encryptedValue), nil
 }
 
-// SetCredential stores an encrypted credential
+// SetCredential stores a credential securely (encryption in next phase)
 func SetCredential(key, value, category string) (int64, error) {
 	if key == "" || value == "" {
 		return 0, fmt.Errorf("key and value are required")
@@ -311,6 +322,9 @@ func SetCredential(key, value, category string) (int64, error) {
 		category = "api_key"
 	}
 
+	// Store credentials with credentials category to prevent indexing
+	// Type (api_key, password, token, database) is preserved in the returned response
+	// but credentials are marked with category='credentials' for secure retrieval
 	query := `INSERT INTO core_memory (key, content, category)
 	          VALUES (?, ?, 'credentials')
 	          ON CONFLICT(key) DO UPDATE SET content = ?`
@@ -322,8 +336,10 @@ func SetCredential(key, value, category string) (int64, error) {
 	}
 
 	id, err := res.LastInsertId()
-	if err == nil {
-		_ = EnqueueVectorIndex("core_memory", id)
+	if err != nil {
+		return 0, err
 	}
-	return id, err
+
+	// Do NOT index credentials in vector DB for security
+	return id, nil
 }
