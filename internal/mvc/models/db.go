@@ -13,6 +13,7 @@ import (
 
 var DB *sql.DB
 
+// InitDB initializes the SQLite database and creates all required tables.
 func InitDB(dbPath string) {
 	// Ensure directory exists
 	dir := filepath.Dir(dbPath)
@@ -34,6 +35,7 @@ func InitDB(dbPath string) {
 	createTables()
 }
 
+// createTables executes all schema creation queries to set up the database.
 func createTables() {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS projects (
@@ -182,11 +184,12 @@ func createTables() {
 	}
 }
 
-// EnsureProject exists and returns its ID
+// EnsureProject creates or retrieves a project by name with optional parent project.
 func EnsureProject(name string, parentName string) (int64, error) {
 	return ensureProjectDepth(name, parentName, 0)
 }
 
+// ensureProjectDepth recursively handles project hierarchy with circular reference detection.
 func ensureProjectDepth(name string, parentName string, depth int) (int64, error) {
 	if depth > 10 {
 		return 0, fmt.Errorf("project hierarchy too deep or circular at: %s", name)
@@ -220,11 +223,13 @@ func ensureProjectDepth(name string, parentName string, depth int) (int64, error
 	return res.LastInsertId()
 }
 
+// AddToProject associates an entity with a project.
 func AddToProject(projectID int64, entityType string, entityID int64) error {
 	_, err := DB.Exec("INSERT OR IGNORE INTO project_entities (project_id, entity_type, entity_id) VALUES (?, ?, ?)", projectID, entityType, entityID)
 	return err
 }
 
+// EnsureNotebook creates or retrieves a notebook by name.
 func EnsureNotebook(name string) (int64, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -244,11 +249,13 @@ func EnsureNotebook(name string) (int64, error) {
 	return res.LastInsertId()
 }
 
+// AddToNotebook associates an entity with a notebook.
 func AddToNotebook(notebookID int64, entityType string, entityID int64) error {
 	_, err := DB.Exec("INSERT OR IGNORE INTO notebook_entities (notebook_id, entity_type, entity_id) VALUES (?, ?, ?)", notebookID, entityType, entityID)
 	return err
 }
 
+// AddTagsToEntity attaches multiple tags to an entity, creating them if needed.
 func AddTagsToEntity(entityType string, entityID int64, tagNames []string) error {
 	for _, name := range tagNames {
 		name = strings.TrimSpace(strings.ToLower(name))
@@ -273,17 +280,20 @@ func AddTagsToEntity(entityType string, entityID int64, tagNames []string) error
 	return nil
 }
 
+// EnqueueVectorIndex queues an entity for vector indexing in the background.
 func EnqueueVectorIndex(entityType string, entityID int64) error {
 	_, err := DB.Exec("INSERT INTO vector_index_queue (entity_type, entity_id, status) VALUES (?, ?, 'pending')", entityType, entityID)
 	return err
 }
 
+// CloseDB closes the database connection.
 func CloseDB() {
 	if DB != nil {
 		DB.Close()
 	}
 }
 
+// GetEntityText retrieves the text content (title/key and body) for an entity by type and ID for vector indexing.
 func GetEntityText(entityType string, entityID int64) (string, string, error) {
 	switch entityType {
 	case "core_memory":
@@ -296,6 +306,10 @@ func GetEntityText(entityType string, entityID int64) (string, string, error) {
 			return "", "", fmt.Errorf("cannot fetch text for credentials category")
 		}
 		return key, content, nil
+	case "task":
+		var title, description string
+		err := DB.QueryRow("SELECT title, description FROM tasks WHERE id = ?", entityID).Scan(&title, &description)
+		return title, description, err
 	case "note":
 		var title, content string
 		err := DB.QueryRow("SELECT title, content FROM notes WHERE id = ?", entityID).Scan(&title, &content)
@@ -308,27 +322,35 @@ func GetEntityText(entityType string, entityID int64) (string, string, error) {
 		var title, content string
 		err := DB.QueryRow("SELECT title, content FROM documents WHERE id = ?", entityID).Scan(&title, &content)
 		return title, content, err
+	case "project":
+		var name, description string
+		err := DB.QueryRow("SELECT name, COALESCE(description, '') FROM projects WHERE id = ?", entityID).Scan(&name, &description)
+		return name, description, err
 	}
 	return "", "", fmt.Errorf("unknown entity type: %s", entityType)
 }
 
+// GraphNode represents a single entity in the knowledge graph.
 type GraphNode struct {
 	ID    string `json:"id"`    // формат: "entityType_id"
 	Type  string `json:"type"`  // e.g. "idea", "task"
 	Title string `json:"title"` // человекочитаемое имя
 }
 
+// GraphEdge represents a relationship between two entities in the knowledge graph.
 type GraphEdge struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
 	Label  string `json:"label"`
 }
 
+// MindmapGraph represents the complete knowledge graph with all nodes and edges.
 type MindmapGraph struct {
 	Nodes []GraphNode `json:"nodes"`
 	Edges []GraphEdge `json:"edges"`
 }
 
+// GetMindmapGraph builds a knowledge graph showing relationships between all memory entities.
 func GetMindmapGraph() (MindmapGraph, error) {
 	var graph MindmapGraph
 	graph.Nodes = make([]GraphNode, 0)

@@ -1,0 +1,41 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.so.*
+*.dylib
+cerber
+cerber-mcp
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+data/*.db
+*.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+mcp.log
+
+# Dependencies
+vendor/
+
+# Test coverage
+coverage.out
+*.coverprofile
