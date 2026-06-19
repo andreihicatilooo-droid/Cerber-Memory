@@ -293,6 +293,7 @@ func CloseDB() {
 	}
 }
 
+// GetEntityText retrieves the text content (title/key and body) for an entity by type and ID for vector indexing.
 func GetEntityText(entityType string, entityID int64) (string, string, error) {
 	switch entityType {
 	case "core_memory":
