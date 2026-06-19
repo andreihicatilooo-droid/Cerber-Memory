@@ -329,18 +329,21 @@ func GetEntityText(entityType string, entityID int64) (string, string, error) {
 	return "", "", fmt.Errorf("unknown entity type: %s", entityType)
 }
 
+// GraphNode represents a single entity in the knowledge graph.
 type GraphNode struct {
 	ID    string `json:"id"`    // формат: "entityType_id"
 	Type  string `json:"type"`  // e.g. "idea", "task"
 	Title string `json:"title"` // человекочитаемое имя
 }
 
+// GraphEdge represents a relationship between two entities in the knowledge graph.
 type GraphEdge struct {
 	Source string `json:"source"`
 	Target string `json:"target"`
 	Label  string `json:"label"`
 }
 
+// MindmapGraph represents the complete knowledge graph with all nodes and edges.
 type MindmapGraph struct {
 	Nodes []GraphNode `json:"nodes"`
 	Edges []GraphEdge `json:"edges"`

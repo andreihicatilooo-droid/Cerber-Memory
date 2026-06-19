@@ -13,6 +13,7 @@ import (
 	"cerber-memory/internal/vector"
 )
 
+// JSONRPCRequest represents an incoming JSON-RPC 2.0 method call.
 type JSONRPCRequest struct {
 	Jsonrpc string            `json:"jsonrpc"`
 	ID      interface{}       `json:"id"`
@@ -20,26 +21,31 @@ type JSONRPCRequest struct {
 	Params  json.RawMessage   `json:"params"`
 }
 
+// JSONRPCResponse represents a JSON-RPC 2.0 response or error.
 type JSONRPCResponse struct {
-	Jsonrpc string      `json:"jsonrpc"`
-	ID      interface{} `json:"id"`
-	Result  interface{} `json:"result,omitempty"`
+	Jsonrpc string        `json:"jsonrpc"`
+	ID      interface{}   `json:"id"`
+	Result  interface{}   `json:"result,omitempty"`
 	Error   *JSONRPCError `json:"error,omitempty"`
 }
 
+// JSONRPCError represents a JSON-RPC 2.0 error response.
 type JSONRPCError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
 
+// MCPServer implements the Model Context Protocol over JSON-RPC 2.0.
 type MCPServer struct {
 	handlers map[string]Handler
 	mu       sync.RWMutex
 }
 
+// Handler is a function that processes an MCP method call and returns a result or error.
 type Handler func(params json.RawMessage) (interface{}, error)
 
+// NewMCPServer creates and initializes a new MCP server with all handlers registered.
 func NewMCPServer() *MCPServer {
 	server := &MCPServer{
 		handlers: make(map[string]Handler),
